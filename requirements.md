@@ -38,7 +38,7 @@
         |                                                                          |
         +----+------------+-------+--------+----------+-----------+-------+--------+
         |    |            |       |        |          |           |       |        |
-        | ID | decl_class | class |   Name | Signatur | decorator | final | static |
+        | ID | decl_class | class |  Name  | Signatur | decorator | final | static |
         |    |            |       |        |          |           |       |        |
         +----+------------+-------+--------+----------+-----------+-------+--------+
 
@@ -86,3 +86,79 @@
   * number of classes without `fullyloaded`
 * Number of errors
 * Number of warnings
+* Program should have a DB abstraction layer so that underlying DB can be replaced
+
+## Other ideas
+
+### Encapsulation with own classloader
+Die Hauptklasse wird mit eigenem ClassLoader instantiiert so dass die jar-files nur in einem Verzeichnis sein und nicht händisch im CLASSPATH mitgegeben werden müssen:
+
+    public void main (String args []) throws Exception
+    {
+        String inputfilename = args [0];
+        File   inputfile = new File (args [0]);
+
+        if (!inputfile.exists ()) {
+            // error handling
+            System.exit (1);
+        }
+
+        ClassProcessor myProcessor = null;
+        Class<ClassProcessor> clazzProcessor = null;
+
+        if (inputfile.isDirectory ()) {
+            File [] jarfiles = inputfile.findFiles (String s -> return s.endsWith (".jar"));
+            Vector<URL> v = new Vector<URL> ();
+            for (String jarfile : jarfiles) {
+                v.add (jarfile.toURI().toURL ());
+            }
+            clazzProcessor = Class.forName ("de.cw.deseregistry.ClassProcessor", true, 
+                new URLClassLoader (v.toArray (), Main.class.getClassLoader ()));
+        }
+        else {
+            clazzProcessor = Class.forName ("de.cw.deseregistry.ClassProcessor", true, 
+                new URLClassLoader (new URL [] { inputfile.toURI().toURL (), Main.class.getClassLoader ()));
+        }
+
+        myProcessor = (ClassProcessor) clazzProcessor.newInstance ();
+    }
+        
+### Recursive analysis of classes
+Man muss letztlich, bei Klassen die eine Elterklasse haben, rekursiv analysieren. Welche Methoden braucht man dafür?
+
+* getSuperClass
+* getInterfaces
+* getMethods
+* getDeclaredMethods
+
+Code:
+
+    private void recursiveVisit (Class clazz) throws Exception
+    {
+        
+        if (dblayer.exists (clazz)) {
+            return;
+        }
+        
+        recursiveVisit (clazz.getSuperClass ());
+        
+        Class [] ifaces = clazz.getInterfaces ();
+        for (Class iface : ifaces) {
+             recursiveVisit (iface);
+        }
+        
+        int pkey = dblayer.add (clazz); // adds: package, name, isiface, superclass, ...
+        
+        Method [] methods = clazz.getDeclaredMethods ();
+        
+        for (Method m : methods) {
+            dblayer.add (pkey, m); // adds Method Info
+        }
+    }
+
+### Helper methods
+
+* `getSignatur (Method)`: gibt mir die Signatur als String ==> vielleicht m.toString ()?
+* `dblayer.exists (Class clazz)` prüft auf name und package
+    
+    
