@@ -1,4 +1,4 @@
-# Requirements
+# Requirements & Design
 
 ## Registry Contents
 
@@ -30,6 +30,19 @@
       |                                           |                                    |          |
       |       foreign key relationship            |                                    |          |
       +-------------------------------------------+------------------------------------+----------+
+      
+      
+        +--------------------------------------------------------------------------+
+        |                                                                          |
+        |  Methods                                                                 |
+        |                                                                          |
+        +----+------------+-------+--------+----------+-----------+-------+--------+
+        |    |            |       |        |          |           |       |        |
+        | ID | decl_class | class |   Name | Signatur | decorator | final | static |
+        |    |            |       |        |          |           |       |        |
+        +----+------------+-------+--------+----------+-----------+-------+--------+
+
+      
 
 ### Table classes
 
@@ -50,3 +63,26 @@
 | ID | int | primary key, non null |
 | Clazz | int | reference to a clazz, foreign key to Classes::ID |
 | impl_inf | int | reference to a clazz, foreign key to Classes::ID, this reference must have Classes::is_inf=true  |
+
+### Table Methods
+| Column name | Data Type | Remarkds |
+| :----------|:----|:-----|
+| ID | int | primary key, non null |
+| decl_class | int | Class that is declaring the method, foreign key to Classes::ID |
+| class | int | Class method belongs to, foreign key to Classes::ID |
+| Name | varchar | Name of the method |
+| Signatur | varchar | signature of the method |
+| decorator | int | public, protected or private |
+| final | boolean | true if final otherwise false |
+| static | boolean | true if static otherwise false |
+
+
+## Other requirements
+
+* Program should be started from the command line with a single jar file or a directory which contains jar files as parameter
+* While loading the classes, there should be a status line indicating the following information:
+  * percentage of already loaded classes (if not possible percentage of loaded jar files)
+  * number of classes with attribute `fullyloaded`
+  * number of classes without `fullyloaded`
+* Number of errors
+* Number of warnings
