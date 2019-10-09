@@ -3,31 +3,44 @@ package de.cw.deseregistry.driver;
 import static de.cw.deseregistry.driver.Listener_Action.ADD_CLASS;
 import static de.cw.deseregistry.driver.Listener_Action.ADD_INTERFACE;
 import static de.cw.deseregistry.driver.Listener_Action.ADD_METHOD;
+import static de.cw.deseregistry.driver.Listener_Action.CLASS_LOAD_ERROR;
 
 import java.io.File;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Vector;
+import java.util.Set;
 
 import de.cw.deseregistry.events.AddClassEvent;
 import de.cw.deseregistry.events.AddIfEvent;
 import de.cw.deseregistry.events.AddMethodEvent;
 import de.cw.deseregistry.events.Event;
+import de.cw.deseregistry.events.ExceptionEvent;
 
 public class ClassProcessorDriver {
 
-	private Vector<File> jarfilesToProcess;
+	private List<File> jarfilesToProcess;
+	private List<String> classesToProcess;
+	private Set<Class<?>> visitedClasses;
 	private List<Listener> addClassListener = new ArrayList<Listener>();
 	private List<Listener> addInterfaceListener = new ArrayList<Listener>();
 	private List<Listener> addMethodListener = new ArrayList<Listener>();
+	private List<Listener> classLoadErrorListener = new ArrayList<Listener>();
 
 	public ClassProcessorDriver() {
-		this.jarfilesToProcess = new Vector<File>();
+		this.jarfilesToProcess = new ArrayList<File>();
+		this.visitedClasses = new HashSet<Class<?>> ();
+		this.classesToProcess = new ArrayList<String> ();
 	}
 
 	public void addJarToProcess(File file) {
 		this.jarfilesToProcess.add(file);
+	}
+	
+	public void addClassToProcess (String className)
+	{
+		this.classesToProcess.add(className);
 	}
 
 	public void register(Listener listener, Listener_Action action) {
@@ -54,25 +67,31 @@ public class ClassProcessorDriver {
 				l.notify(e);
 			});
 		}
+		else if (action == CLASS_LOAD_ERROR) {
+			classLoadErrorListener.forEach(l -> {
+				l.notify (e);
+			});
+		}
 	}
 
-	private void recursiveVisit(Class clazz) throws Exception {
-
-		AddClassEvent ev2 = new AddClassEvent(clazz);
+	private void recursiveVisit(Class clazz) throws Exception
+	{
+		if (clazz == null)
+			return;
 		
-		if (clazz.isInterface()) {
-			// has been notified before already
-		}
-		else {
-			notify(ADD_CLASS, ev2);
-		}
+		if (visitedClasses.contains (clazz))
+			return;
+		else
+			visitedClasses.add (clazz);
+
+		AddClassEvent ev2 = new AddClassEvent(clazz, clazz.getSuperclass());
+		notify (ADD_CLASS, ev2);
 
 		recursiveVisit(clazz.getSuperclass());
 
 		Class<?>[] ifaces = clazz.getInterfaces();
 		for (Class<?> iface : ifaces) {
-			AddIfEvent ev = new AddIfEvent (iface);
-			ev.setClass_pk (ev2.getClass_pk());
+			AddIfEvent ev = new AddIfEvent (iface, ev2);
 			notify (ADD_INTERFACE, ev);
 			recursiveVisit(iface);
 		}
@@ -82,5 +101,20 @@ public class ClassProcessorDriver {
 		for (Method m : methods) {
 			notify (ADD_METHOD, new AddMethodEvent (m));
 		}
+	}
+	
+	public void go () throws Exception
+	{
+		classesToProcess.forEach(s -> {
+			try { 
+				Class<?> clz = Class.forName (s);
+				this.recursiveVisit(clz);
+			}
+			catch (Throwable e) {
+				ExceptionEvent excev = new ExceptionEvent ();
+				excev.exc = e;
+				notify (Listener_Action.CLASS_LOAD_ERROR, excev);
+			}
+		});
 	}
 }

@@ -1,22 +1,23 @@
 package de.cw.deseregistry.events;
 
+/**
+ *  Dieses Event bildet die Kante Class <-> implemented Interface ab
+ *
+ */
 public class AddIfEvent extends Event {
 
 	private Class<?> addedInterface;
 	/**
 	 *  primary key of the implementing class
 	 */
-	private int class_pk;
+	private Event parent;
+
+
+	public AddIfEvent (Class<?> clazz, Event parent) { this.addedInterface = clazz; this.parent = parent; }
 	
-	public int getClass_pk() {
-		return class_pk;
+	public Event getParent() {
+		return parent;
 	}
 
-	public void setClass_pk(int class_pk) {
-		this.class_pk = class_pk;
-	}
-
-	public AddIfEvent (Class<?> clazz) { this.addedInterface = clazz; }
-	
 	public Class<?> getInterface () { return this.addedInterface; }
 }

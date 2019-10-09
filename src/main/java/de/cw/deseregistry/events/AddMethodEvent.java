@@ -2,6 +2,10 @@ package de.cw.deseregistry.events;
 
 import java.lang.reflect.Method;
 
+/**
+ *  Diese Klasse bildet die Kante Class <-> implementierte Methode ab.
+ *  
+ */
 public class AddMethodEvent extends Event {
 
 	private Method addedMethod;
