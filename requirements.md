@@ -88,6 +88,14 @@
 * Number of warnings
 * Program should have a DB abstraction layer so that underlying DB can be replaced
 
+## Command line options
+
+    -i --input  <file> input file (jar-file) or input directory
+    -c          <file> do not analyze all classes in jar files.
+                       Instead, analyze classes stored in <file>
+    -b          <file> Ignore classes and packages listed in 
+                       file
+
 ## Other ideas
 
 ### Encapsulation with own classloader
