@@ -84,16 +84,25 @@ public class ClassProcessorDriver {
 		else
 			visitedClasses.add (clazz);
 
+		// wir müssen beim Vater anfangen damit der im Cache ist
+		recursiveVisit(clazz.getSuperclass());
+		
+		// erst wenn die ganze Kette zu java.lang.Object erledigt ist
+		// fangen wir mit dem Rest an
 		AddClassEvent ev2 = new AddClassEvent(clazz, clazz.getSuperclass());
 		notify (ADD_CLASS, ev2);
 
-		recursiveVisit(clazz.getSuperclass());
 
 		Class<?>[] ifaces = clazz.getInterfaces();
 		for (Class<?> iface : ifaces) {
+			// Interface müssen wir erst besuchen damit 
+			// die pks im Cache sind
+			recursiveVisit(iface);
+			
+			// jetzt ist die gesamte Hierarchy von iface 
+			// im Cache und wir können die Kante hinzufügen
 			AddIfEvent ev = new AddIfEvent (iface, ev2);
 			notify (ADD_INTERFACE, ev);
-			recursiveVisit(iface);
 		}
 
 		Method[] methods = clazz.getDeclaredMethods();

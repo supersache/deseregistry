@@ -34,5 +34,4 @@ public class ConsoleListener implements Listener {
 			((ExceptionEvent)e).exc.printStackTrace();
 		}
 	}
-
 }

@@ -12,7 +12,7 @@ import java.util.Map;
 public class SQLiteDriver
 {
 	private Connection conn = null;
-	private Map<String,Integer> classPkMap = new HashMap<String,Integer> ();	
+	private Map<String,Integer> classPkMap = new HashMap<String,Integer> ();
 	
 	public SQLiteDriver ()
 	{
@@ -28,17 +28,22 @@ public class SQLiteDriver
 		}
 	}
 	
-	public void insertIntoClass (String name, String pkg, String jar, int pkSuperClass, boolean isInterface)
+	public Integer getPKForClass (Class<?> clz)
+	{
+		String classname = clz.getName();
+		return classPkMap.get (classname);
+	}
+	
+	public void insertIntoClass (String name, String jar, int pkSuperClass, boolean isInterface)
 			throws SQLException
 	{
-		final String sql = "INSERT TO CLASS (NAME,PACKAGE,JAR,SUPER,IS_INF) VALUES (?,?,?,?,?)";
+		final String sql = "INSERT INTO CLASSES (NAME,JAR,SUPER,IS_INF) VALUES (?,?,?,?)";
 		
 		try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 			stmt.setString	(1, name);
-			stmt.setString 	(2, pkg);
-			stmt.setString	(3, jar);
-			stmt.setInt		(4, pkSuperClass);
-			stmt.setInt		(5, isInterface?1:0);
+			stmt.setString	(2, jar);
+			stmt.setInt		(3, pkSuperClass);
+			stmt.setInt		(4, isInterface?1:0);
 			
 			stmt.execute ();
 			
@@ -51,22 +56,21 @@ public class SQLiteDriver
 			ResultSet st = stmt.getGeneratedKeys();
 			while (st.next()) {
 				int key = st.getInt (1);
-				classPkMap.put(pkg + "." + name, key);
+				classPkMap.put(name, key);
 			}
 		}
 	}
 
 	
-	public void insertIntoClass (String name, String pkg, String jar, boolean isInterface)
+	public void insertIntoClass (String name, String jar, boolean isInterface)
 			throws SQLException
 	{
-		final String sql = "INSERT TO CLASS (NAME,PACKAGE,JAR,IS_INF) VALUES (?,?,?,?)";
+		final String sql = "INSERT INTO CLASSES (NAME,JAR,IS_INF) VALUES (?,?,?)";
 		
 		try (PreparedStatement stmt = conn.prepareStatement (sql, Statement.RETURN_GENERATED_KEYS)) {
 			stmt.setString	(1, name);
-			stmt.setString 	(2, pkg);
-			stmt.setString	(3, jar);
-			stmt.setInt		(5, isInterface?1:0);
+			stmt.setString	(2, jar);
+			stmt.setInt		(3, isInterface?1:0);
 			
 			stmt.execute ();
 			
@@ -79,7 +83,7 @@ public class SQLiteDriver
 			ResultSet st = stmt.getGeneratedKeys ();
 			while (st.next ()) {
 				int key = st.getInt (1);
-				classPkMap.put (pkg + "." + name, key);
+				classPkMap.put (name, key);
 			}
 		}
 	}
@@ -87,12 +91,12 @@ public class SQLiteDriver
 	public void insertIntoImplIf (int pkClass, int pkInf)
 			throws SQLException
 	{
-		final String sql = "INSERT TO IMPL_IF (CLASS,IMPL_INF) VALUES (?,?)";
+		final String sql = "INSERT INTO IMPL_INF (CLASS,IMPL_INF) VALUES (?,?)";
 		
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setInt		(1, pkClass);
 			stmt.setInt		(2, pkInf);			
-			stmt.execute ();
+			stmt.execute    ();
 		}
 	}
 }

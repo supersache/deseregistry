@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Vector;
 
+import de.cw.deseregistry.list.db.SQLiteListener;
+
 public class Main {
 
 	@SuppressWarnings("unchecked")
@@ -128,7 +130,8 @@ public class Main {
         /**
          *  Listener registrieren
          */
-        ConsoleListener cl = new ConsoleListener();
+        //ConsoleListener cl = new ConsoleListener();
+        SQLiteListener cl = new SQLiteListener();
         cpd.register (cl, ADD_CLASS);
         cpd.register (cl, ADD_INTERFACE);
         cpd.register(cl, ADD_METHOD);

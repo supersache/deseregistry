@@ -10,12 +10,17 @@ public class AddIfEvent extends Event {
 	/**
 	 *  primary key of the implementing class
 	 */
-	private Event parent;
+	private AddClassEvent parent;
 
 
-	public AddIfEvent (Class<?> clazz, Event parent) { this.addedInterface = clazz; this.parent = parent; }
+	/**
+	 * 
+	 * @param clazz class object representing the interface class
+	 * @param parent Event object fired for the class that is implementing this interface
+	 */
+	public AddIfEvent (Class<?> clazz, AddClassEvent parent) { this.addedInterface = clazz; this.parent = parent; }
 	
-	public Event getParent() {
+	public AddClassEvent getParent() {
 		return parent;
 	}
 
