@@ -1,7 +1,8 @@
 package de.cw.deseregistry.driver;
 
 import static de.cw.deseregistry.driver.Listener_Action.ADD_CLASS;
-import static de.cw.deseregistry.driver.Listener_Action.ADD_INTERFACE;
+import static de.cw.deseregistry.driver.Listener_Action.ADD_IMPLEMENTS;
+import static de.cw.deseregistry.driver.Listener_Action.ADD_EXTENDS;
 import static de.cw.deseregistry.driver.Listener_Action.ADD_METHOD;
 import static de.cw.deseregistry.driver.Listener_Action.CLASS_LOAD_ERROR;
 
@@ -13,7 +14,7 @@ import java.util.List;
 import java.util.Set;
 
 import de.cw.deseregistry.events.AddClassEvent;
-import de.cw.deseregistry.events.AddIfEvent;
+import de.cw.deseregistry.events.AddImplementsEvent;
 import de.cw.deseregistry.events.AddMethodEvent;
 import de.cw.deseregistry.events.Event;
 import de.cw.deseregistry.events.ExceptionEvent;
@@ -24,7 +25,8 @@ public class ClassProcessorDriver {
 	private List<String> classesToProcess;
 	private Set<Class<?>> visitedClasses;
 	private List<Listener> addClassListener = new ArrayList<Listener>();
-	private List<Listener> addInterfaceListener = new ArrayList<Listener>();
+	private List<Listener> addImplementsListener = new ArrayList<Listener>();
+	private List<Listener> addExtendsListener = new ArrayList<Listener>();
 	private List<Listener> addMethodListener = new ArrayList<Listener>();
 	private List<Listener> classLoadErrorListener = new ArrayList<Listener>();
 
@@ -46,8 +48,10 @@ public class ClassProcessorDriver {
 	public void register(Listener listener, Listener_Action action) {
 		if (action == ADD_CLASS) {
 			addClassListener.add(listener);
-		} else if (action == ADD_INTERFACE) {
-			addInterfaceListener.add(listener);
+		} else if (action == ADD_IMPLEMENTS) {
+			addImplementsListener.add(listener);
+		} else if (action == ADD_EXTENDS) {
+			addExtendsListener.add(listener);
 		} else if (action == ADD_METHOD) {
 			addMethodListener.add(listener);
 		}
@@ -58,8 +62,12 @@ public class ClassProcessorDriver {
 			addClassListener.forEach(l -> {
 				l.notify(e);
 			});
-		} else if (action == ADD_INTERFACE) {
-			addInterfaceListener.forEach(l -> {
+		} else if (action == ADD_IMPLEMENTS) {
+			addImplementsListener.forEach(l -> {
+				l.notify(e);
+			});
+		} else if (action == ADD_EXTENDS) {
+			addExtendsListener.forEach(l -> {
 				l.notify(e);
 			});
 		} else if (action == ADD_METHOD) {
@@ -91,7 +99,7 @@ public class ClassProcessorDriver {
 
 		Class<?>[] ifaces = clazz.getInterfaces();
 		for (Class<?> iface : ifaces) {
-			AddIfEvent ev = new AddIfEvent (iface, ev2);
+			AddImplementsEvent ev = new AddImplementsEvent (iface, ev2);
 			notify (ADD_INTERFACE, ev);
 			recursiveVisit(iface);
 		}

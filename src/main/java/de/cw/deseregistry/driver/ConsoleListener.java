@@ -1,7 +1,7 @@
 package de.cw.deseregistry.driver;
 
 import de.cw.deseregistry.events.AddClassEvent;
-import de.cw.deseregistry.events.AddIfEvent;
+import de.cw.deseregistry.events.AddImplementsEvent;
 import de.cw.deseregistry.events.AddMethodEvent;
 import de.cw.deseregistry.events.Event;
 import de.cw.deseregistry.events.ExceptionEvent;
@@ -20,8 +20,8 @@ public class ConsoleListener implements Listener {
 				System.out.println ("Class added => " + ace.getEventClass().getName() + " (" + ace.getSuperClass() + ")");
 			}
 		}
-		else if (e instanceof AddIfEvent) {
-			AddIfEvent aie = (AddIfEvent) e;
+		else if (e instanceof AddImplementsEvent) {
+			AddImplementsEvent aie = (AddImplementsEvent) e;
 			AddClassEvent parent = (AddClassEvent) aie.getParent ();
 			
 			System.out.println ("Interface found for Class => " + aie.getInterface ().getName () + ", " + parent.getEventClass ());
