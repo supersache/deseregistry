@@ -2,6 +2,7 @@ package de.cw.deseregistry.driver;
 
 import static de.cw.deseregistry.utils.IConstants.INPUT_FILE_CLASSES;
 import static de.cw.deseregistry.utils.IConstants.INPUT_FILE_JARS;
+import static de.cw.deseregistry.utils.IConstants.DB_FILE;
 
 import static de.cw.deseregistry.driver.Listener_Action.ADD_CLASS;
 import static de.cw.deseregistry.driver.Listener_Action.ADD_INTERFACE;
@@ -59,6 +60,24 @@ public class Main {
         	System.out.println ("Input file " + inputClassesParam + " doesn't exist, exiting ...");
             System.exit (1);
         }
+        
+        String dbfileParam = conf.getProperty (DB_FILE);        
+        if (dbfileParam == null) {
+        	System.out.println ("Parameter " + DB_FILE + " missing in config, exiting ...");
+        	System.exit(1);
+        }
+        File dbfile = new File (dbfileParam);
+
+        if (!dbfile.exists ()) {
+        	System.out.println ("Input file " + inputClassesParam + " doesn't exist, exiting ...");
+            System.exit (1);
+        }
+        
+        /**
+         *  Für's Laden des DB driver, vielleicht etwas umständlich
+         */
+        System.setProperty("SQLITEDBFILE", dbfileParam);
+        
         
         List<String> classesToAnalyze = readClasses (inputfile2);
         

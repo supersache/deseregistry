@@ -1,2 +1,3 @@
 /target/
 *.class
+/desereg_test1.db
