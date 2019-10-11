@@ -1,10 +1,10 @@
 package de.cw.deseregistry.driver;
 
-import static de.cw.deseregistry.driver.Listener_Action.ADD_CLASS;
-import static de.cw.deseregistry.driver.Listener_Action.ADD_EXTENDS;
-import static de.cw.deseregistry.driver.Listener_Action.ADD_IMPLEMENTS;
-import static de.cw.deseregistry.driver.Listener_Action.ADD_METHOD;
-import static de.cw.deseregistry.driver.Listener_Action.CLASS_LOAD_ERROR;
+import static de.cw.deseregistry.main.Listener_Action.ADD_CLASS;
+import static de.cw.deseregistry.main.Listener_Action.ADD_EXTENDS;
+import static de.cw.deseregistry.main.Listener_Action.ADD_IMPLEMENTS;
+import static de.cw.deseregistry.main.Listener_Action.ADD_METHOD;
+import static de.cw.deseregistry.main.Listener_Action.CLASS_LOAD_ERROR;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -26,8 +26,12 @@ import de.cw.deseregistry.events.AddExtendsEvent;
 import de.cw.deseregistry.events.AddImplementsEvent;
 import de.cw.deseregistry.events.AddMethodEvent;
 import de.cw.deseregistry.events.Event;
+import de.cw.deseregistry.main.IDriver;
+import de.cw.deseregistry.main.Listener;
+import de.cw.deseregistry.main.Listener_Action;
 
-public class ClassProcessorDriver {
+public class ClassProcessorDriver implements IDriver
+{
 
 	private List<File> jarfilesToProcess;
 	private List<String> classesToProcess;
@@ -101,15 +105,26 @@ public class ClassProcessorDriver {
 		this.classesToProcess.add(className);
 	}
 
-	public void register(Listener listener, Listener_Action action) {
-		if (action == ADD_CLASS) {
-			addClassListener.add(listener);
-		} else if (action == ADD_IMPLEMENTS) {
-			addImplementsListener.add(listener);
-		} else if (action == ADD_EXTENDS) {
-			addExtendsListener.add(listener);
-		} else if (action == ADD_METHOD) {
-			addMethodListener.add(listener);
+	public void register(String clz, Listener_Action [] actions) {
+		
+		Listener listener = null;
+		try {
+			listener = (Listener) Class.forName(clz).newInstance();
+		}
+		catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+			throw new FatalException (e);
+		} 		
+		
+		for (Listener_Action action : actions) {
+			if (action == ADD_CLASS) {
+				addClassListener.add(listener);
+			} else if (action == ADD_IMPLEMENTS) {
+				addImplementsListener.add(listener);
+			} else if (action == ADD_EXTENDS) {
+				addExtendsListener.add(listener);
+			} else if (action == ADD_METHOD) {
+				addMethodListener.add(listener);
+			}
 		}
 	}
 

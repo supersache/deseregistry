@@ -5,6 +5,7 @@ import de.cw.deseregistry.events.AddImplementsEvent;
 import de.cw.deseregistry.events.AddMethodEvent;
 import de.cw.deseregistry.events.Event;
 import de.cw.deseregistry.events.ExceptionEvent;
+import de.cw.deseregistry.main.Listener;
 import de.cw.deseregistry.utils.Utils;
 
 public class ConsoleListener implements Listener {

@@ -10,6 +10,13 @@
 			<artifactId>sqlite-jdbc</artifactId>
 			<version>3.28.0</version>
 		</dependency>
+		<dependency>
+			<groupId>de.cw.deseregistry</groupId>
+			<artifactId>deseregistry-main</artifactId>
+			<version>0.0.1</version>
+			<scope>system</scope>
+			<systemPath>/home/kai/eclipse-workspaces/tools/deseregistry-main/target/deseregistry-main-0.0.1-SNAPSHOT-all.jar</systemPath>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>

@@ -3,7 +3,6 @@ package de.cw.deseregistry.list.db;
 import java.lang.reflect.Method;
 import java.sql.SQLException;
 
-import de.cw.deseregistry.driver.Listener;
 import de.cw.deseregistry.errorhandling.FatalException;
 import de.cw.deseregistry.events.AddClassEvent;
 import de.cw.deseregistry.events.AddExtendsEvent;
@@ -11,6 +10,7 @@ import de.cw.deseregistry.events.AddImplementsEvent;
 import de.cw.deseregistry.events.AddMethodEvent;
 import de.cw.deseregistry.events.Event;
 import de.cw.deseregistry.events.ExceptionEvent;
+import de.cw.deseregistry.main.Listener;
 import de.cw.deseregistry.utils.Utils;
 
 public class SQLiteListener implements Listener {
