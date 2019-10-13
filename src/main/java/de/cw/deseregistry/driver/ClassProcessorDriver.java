@@ -1,37 +1,99 @@
 package de.cw.deseregistry.driver;
 
-import static de.cw.deseregistry.driver.Listener_Action.ADD_CLASS;
-import static de.cw.deseregistry.driver.Listener_Action.ADD_INTERFACE;
-import static de.cw.deseregistry.driver.Listener_Action.ADD_METHOD;
-import static de.cw.deseregistry.driver.Listener_Action.CLASS_LOAD_ERROR;
+import static de.cw.deseregistry.main.Listener_Action.ADD_CLASS;
+import static de.cw.deseregistry.main.Listener_Action.ADD_EXTENDS;
+import static de.cw.deseregistry.main.Listener_Action.ADD_IMPLEMENTS;
+import static de.cw.deseregistry.main.Listener_Action.ADD_METHOD;
+import static de.cw.deseregistry.main.Listener_Action.CLASS_LOAD_ERROR;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import de.cw.deseregistry.errorhandling.FatalException;
 import de.cw.deseregistry.events.AddClassEvent;
-import de.cw.deseregistry.events.AddIfEvent;
+import de.cw.deseregistry.events.AddExtendsEvent;
+import de.cw.deseregistry.events.AddImplementsEvent;
 import de.cw.deseregistry.events.AddMethodEvent;
 import de.cw.deseregistry.events.Event;
-import de.cw.deseregistry.events.ExceptionEvent;
+import de.cw.deseregistry.main.IDriver;
+import de.cw.deseregistry.main.Listener;
+import de.cw.deseregistry.main.Listener_Action;
 
-public class ClassProcessorDriver {
+public class ClassProcessorDriver implements IDriver
+{
 
 	private List<File> jarfilesToProcess;
 	private List<String> classesToProcess;
 	private Set<Class<?>> visitedClasses;
 	private List<Listener> addClassListener = new ArrayList<Listener>();
-	private List<Listener> addInterfaceListener = new ArrayList<Listener>();
+	private List<Listener> addImplementsListener = new ArrayList<Listener>();
+	private List<Listener> addExtendsListener = new ArrayList<Listener>();
 	private List<Listener> addMethodListener = new ArrayList<Listener>();
 	private List<Listener> classLoadErrorListener = new ArrayList<Listener>();
+	
+	private PrintWriter visitedFile = null;
 
 	public ClassProcessorDriver() {
 		this.jarfilesToProcess = new ArrayList<File>();
 		this.visitedClasses = new HashSet<Class<?>> ();
 		this.classesToProcess = new ArrayList<String> ();
+	}
+	
+	public ClassProcessorDriver (File visitedFile)
+	{
+		this ();
+		prepareVisitedFile (visitedFile);
+	}
+	
+	/**
+	 * Kümmert sich um die Datei, die schon analysierte Klassen speichert
+	 * @param visitedFile Parameter aus der Config der die Datei benennt
+	 */
+	private void prepareVisitedFile (File visitedFile)
+	{
+		try {
+			if (visitedFile.exists ()) {
+				/**
+				 *  Wenn die Datei existiert müssen zuerst die schon besuchten Klassen
+				 *  eingelesen werden damit man nachher da weitermachen kann
+				 *  wo man das letzte Mal aufgehört hat
+				 */
+				BufferedReader br = new BufferedReader (new InputStreamReader (new FileInputStream (visitedFile)));
+				String line = null;
+				while (null != (line = br.readLine ())) {
+					this.visitedClasses.add (Class.forName (line));
+				}
+				// wenn wir hier nicht close machen funktioniert die 
+				// darauf folgende Anweisung nicht.
+				br.close();
+				// damit wir eine neue Datei schreiben können
+				visitedFile.delete ();
+			}
+			this.visitedFile = new PrintWriter (new FileOutputStream (visitedFile));
+		}
+		catch (FileNotFoundException e) {
+			e.printStackTrace(System.err);
+			throw new FatalException ("Cannot create Visited File.");
+		}
+		catch (IOException e) {
+			e.printStackTrace (System.err);
+			throw new FatalException ("Stress with visited file.");
+		}
+		catch (ClassNotFoundException e) {
+			e.printStackTrace (System.err);
+			throw new FatalException ("Cannot load visited class.");
+		}				
 	}
 
 	public void addJarToProcess(File file) {
@@ -43,13 +105,26 @@ public class ClassProcessorDriver {
 		this.classesToProcess.add(className);
 	}
 
-	public void register(Listener listener, Listener_Action action) {
-		if (action == ADD_CLASS) {
-			addClassListener.add(listener);
-		} else if (action == ADD_INTERFACE) {
-			addInterfaceListener.add(listener);
-		} else if (action == ADD_METHOD) {
-			addMethodListener.add(listener);
+	public void register(String clz, Listener_Action [] actions) {
+		
+		Listener listener = null;
+		try {
+			listener = (Listener) Class.forName(clz).newInstance();
+		}
+		catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+			throw new FatalException (e);
+		} 		
+		
+		for (Listener_Action action : actions) {
+			if (action == ADD_CLASS) {
+				addClassListener.add(listener);
+			} else if (action == ADD_IMPLEMENTS) {
+				addImplementsListener.add(listener);
+			} else if (action == ADD_EXTENDS) {
+				addExtendsListener.add(listener);
+			} else if (action == ADD_METHOD) {
+				addMethodListener.add(listener);
+			}
 		}
 	}
 
@@ -58,8 +133,12 @@ public class ClassProcessorDriver {
 			addClassListener.forEach(l -> {
 				l.notify(e);
 			});
-		} else if (action == ADD_INTERFACE) {
-			addInterfaceListener.forEach(l -> {
+		} else if (action == ADD_IMPLEMENTS) {
+			addImplementsListener.forEach(l -> {
+				l.notify(e);
+			});
+		} else if (action == ADD_EXTENDS) {
+			addExtendsListener.forEach(l -> {
 				l.notify(e);
 			});
 		} else if (action == ADD_METHOD) {
@@ -74,7 +153,7 @@ public class ClassProcessorDriver {
 		}
 	}
 
-	private void recursiveVisit(Class clazz) throws Exception
+	private void recursiveVisit(Class clazz)
 	{
 		if (clazz == null)
 			return;
@@ -89,8 +168,19 @@ public class ClassProcessorDriver {
 		
 		// erst wenn die ganze Kette zu java.lang.Object erledigt ist
 		// fangen wir mit dem Rest an
+<<<<<<< HEAD
 		AddClassEvent ev2 = new AddClassEvent(clazz, clazz.getSuperclass());
+=======
+		AddClassEvent ev2 = new AddClassEvent(clazz);
+>>>>>>> redesign
 		notify (ADD_CLASS, ev2);
+		
+		// jetzt wo beide Klassen im System sind können wir die Kante zwischen den
+		// beiden notifizieren.
+		if (clazz.getSuperclass() != null) {
+			AddExtendsEvent aee = new AddExtendsEvent (clazz.getSuperclass(), ev2);
+			notify (ADD_EXTENDS, aee);
+		}
 
 
 		Class<?>[] ifaces = clazz.getInterfaces();
@@ -101,29 +191,36 @@ public class ClassProcessorDriver {
 			
 			// jetzt ist die gesamte Hierarchy von iface 
 			// im Cache und wir können die Kante hinzufügen
-			AddIfEvent ev = new AddIfEvent (iface, ev2);
-			notify (ADD_INTERFACE, ev);
+			AddImplementsEvent ev = new AddImplementsEvent (iface, ev2);
+			notify (ADD_IMPLEMENTS, ev);
 		}
 
 		Method[] methods = clazz.getDeclaredMethods();
 
 		for (Method m : methods) {
-			notify (ADD_METHOD, new AddMethodEvent (m));
+			notify (ADD_METHOD, new AddMethodEvent (m, clazz));
 		}
 	}
 	
 	public void go () throws Exception
 	{
-		classesToProcess.forEach(s -> {
-			try { 
-				Class<?> clz = Class.forName (s);
-				this.recursiveVisit(clz);
-			}
-			catch (Throwable e) {
-				ExceptionEvent excev = new ExceptionEvent ();
-				excev.exc = e;
-				notify (Listener_Action.CLASS_LOAD_ERROR, excev);
-			}
-		});
+		try {
+			classesToProcess.forEach(s -> {
+				try {
+					Class<?> clz = Class.forName (s);
+					this.recursiveVisit(clz);
+				}
+				catch (ClassNotFoundException e) {
+					e.printStackTrace (System.err);
+				}
+			});
+		}
+		catch (FatalException e) {
+			System.err.println(e.getMessage());
+		}
+		finally {
+			this.visitedClasses.forEach(s -> { this.visitedFile.println (s.getName()); });
+			this.visitedFile.close();
+		}
 	}
 }

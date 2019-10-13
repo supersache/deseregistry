@@ -14,33 +14,51 @@
 
 ## Table design
 
-    +----------------------------------------------------------+              +-------------------------+
-    |                                                          |              |                         |
-    |  Classes                                                 |              | Impl_inf                |
-    |                                                          |              |                         |
-    +----+------+---------+-----+-------------+-------+--------+              +----+-------+------------+
-    |    |      |         |     |             |       |        |              |    |       |            |
-    | ID | Name | Package | jar | fullyloaded | super | is_inf |              | ID | Clazz | impl_inf   |
-    |    |      |         |     |             |       |        |              |    |       |            |
-    +-+--+------+---------+-----+-------------+-------+--------+              +----+-------+------------+
-      |                                           ^                                    ^          ^
-      |                                           |                                    |          |
-      |                                           |                                    |          |
-      |                                           |                                    |          |
-      |                                           |                                    |          |
-      |       foreign key relationship            |                                    |          |
-      +-------------------------------------------+------------------------------------+----------+
-      
-      
-        +--------------------------------------------------------------------------+
-        |                                                                          |
-        |  Methods                                                                 |
-        |                                                                          |
-        +----+------------+-------+--------+----------+-----------+-------+--------+
-        |    |            |       |        |          |           |       |        |
-        | ID | decl_class | class |  Name  | Signatur | decorator | final | static |
-        |    |            |       |        |          |           |       |        |
-        +----+------------+-------+--------+----------+-----------+-------+--------+
+       +------------------------------------+                    +------------------------------------------------------+
+       |                                    |                    |                                                      |
+       |  Node table: Classes / Interfaces  |                    |  Edge table: Links between objects of type CLASS     |
+       |                                    |                    |                                                      |
+       +-----------------+------------------+                    +-------+-------------------------+--------------------+
+                         |                                               |                         |
+                         |                                               |                         |
+                         v                                               v                         v
+    +--------------------+-----------------------------+       +---------+---------------+      +--+----------------------+
+    |                                                  |       |                         |      |                         |
+    |  Class                                           |       | Impl_inf                |      | Extends                 |
+    |                                                  |       |                         |      |                         |
+    +----+------+---------+-----+-------------+--------+       +----+-------+------------+      +----+-------+------------+
+    |    |      |         |     |             |        |       |    |       |            |      |    |       |            |
+    | ID | Name | Package | jar | fullyloaded | is_inf |       | ID | Clazz | impl_inf   |      | ID | Clazz | Super      |
+    |    |      |         |     |             |        |       |    |       |            |      |    |       |            |
+    +-+--+------+---------+-----+-------------+--------+       +----+---+---+------+-----+      +----+---+---+------+-----+
+      |                                                                 ^          ^                     ^          ^
+      |                                                                 |          |                     |          |
+      |                                                                 |          |                     |          |
+      |                                                                 |          |                     |          |
+      |                                                                 |          |                     |          |
+      |       foreign key relationship                                  |          |                     |          |
+      +-----------------------------------------------------------------+----------+---------------------+----------+
+
+
+        +----------------------------------------------------------------------+
+        |                                                                      |
+        |  Hybrid table: Stores nodes (method object) and edges (connection    |
+        |  to class and declaring class)                                       |
+        |                                                                      |
+        +-------------------------------+--------------------------------------+
+                                        |
+                                        |
+                                        v
+          +-----------------------------+--------------------------------------------+
+          |                                                                          |
+          |  Methods                                                                 |
+          |                                                                          |
+          +----+------------+-------+--------+----------+-----------+-------+--------+
+          |    |            |       |        |          |           |       |        |
+          | ID | decl_class | class |  Name  | Signatur | decorator | final | static |
+          |    |            |       |        |          |           |       |        |
+          +----+------------+-------+--------+----------+-----------+-------+--------+
+
 
       
 
@@ -54,15 +72,21 @@
 | Package | varchar | Package of the class, i.e. java.util |
 | jar | varchar | Name of the jar-file the class was loaded from, i.e. commons-collections-1.3.1.jar |
 | fullyloaded | boolean | false if Class.forName throws an exception, true otherwise |
-| super | int | ID of the superclass or NULL |
 | is_inf| boolean | true if the class is an interface |
 
-### Table Impl_inf
+### Table Implements
 | Column name | Data Type | Remarks |
 |:-----------|:---------|:-------|
 | ID | int | primary key, non null |
 | Clazz | int | reference to a clazz, foreign key to Classes::ID |
 | impl_inf | int | reference to a clazz, foreign key to Classes::ID, this reference must have Classes::is_inf=true  |
+
+### Table Extends
+| Column name | Data Type | Remarks |
+|:-----------|:---------|:-------|
+| ID | int | primary key, non null |
+| Clazz | int | reference to a clazz, foreign key to Classes::ID |
+| Super | int | reference to a clazz, foreign key to Classes::ID, this reference is superclass of Clazz  |
 
 ### Table Methods
 | Column name | Data Type | Remarkds |

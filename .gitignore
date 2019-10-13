@@ -1,3 +1,5 @@
 /target/
 *.class
 /desereg_test1.db
+/visited
+/p4all_test1.db

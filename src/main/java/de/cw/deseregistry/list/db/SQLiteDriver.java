@@ -35,15 +35,14 @@ public class SQLiteDriver
 	}
 	
 	public void insertIntoClass (String name, String jar, int pkSuperClass, boolean isInterface)
-			throws SQLException
+		throws SQLException
 	{
-		final String sql = "INSERT INTO CLASSES (NAME,JAR,SUPER,IS_INF) VALUES (?,?,?,?)";
+		final String sql = "INSERT INTO CLASSES (NAME,JAR,IS_INF) VALUES (?,?,?)";
 		
 		try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 			stmt.setString	(1, name);
 			stmt.setString	(2, jar);
-			stmt.setInt		(3, pkSuperClass);
-			stmt.setInt		(4, isInterface?1:0);
+			stmt.setInt	(3, isInterface?1:0);
 			
 			stmt.execute ();
 			
@@ -88,14 +87,74 @@ public class SQLiteDriver
 		}
 	}
 	
-	public void insertIntoImplIf (int pkClass, int pkInf)
-			throws SQLException
+	/**
+	 * Adds a new relationship between implementing clazz and interface (clazz implements interface)
+	 * @param pkClass implementing class
+	 * @param pkInf interface being implemented
+	 * @throws SQLException
+	 */
+	public void insertIntoImplements (int pkClass, int pkInf)
+		throws SQLException
 	{
-		final String sql = "INSERT INTO IMPL_INF (CLASS,IMPL_INF) VALUES (?,?)";
+		final String sql = "INSERT INTO IMPLEMENTS (CLASS,IMPL_INF) VALUES (?,?)";
 		
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setInt		(1, pkClass);
 			stmt.setInt		(2, pkInf);			
+			stmt.execute    ();
+		}
+	}
+	
+
+	/**
+	 *  Adds a new relationship between class and superclass (clazz extends superclass)
+	 * @param pkClass clazz
+	 * @param pkSuper parent class (superclass)
+	 * @throws SQLException
+	 */
+	public void insertIntoExtends (int pkClass, int pkSuper)
+		throws SQLException
+	{
+		final String sql = "INSERT INTO EXTENDS (CLASS,SUPER) VALUES (?,?)";
+		
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setInt		(1, pkClass);
+			stmt.setInt		(2, pkSuper);			
+			stmt.execute    ();
+		}
+	}
+	
+	/**
+	 * Inserts an entry into the hybrid table METHOD
+	 * @param pkDeclClass Class that declares the method. E.g. hashCode() is declared 
+	 *                    by java.lang.Object.
+	 * @param pkClass Class that implements the method
+	 * @param decorator public,protected,private,package
+	 * @param finasta  bitmap: final, native, static
+	 * @param signature function signature
+	 * @throws SQLException
+	 */
+	public void insertIntoMethod (int pkDeclClass, int modifier, String signature)
+		throws SQLException
+	{
+		final String sql = "INSERT INTO METHOD (DECL_CLASS,MODIFIER, SIGNATURE) VALUES (?,?,?)";
+		
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setInt		(1, pkDeclClass);
+			stmt.setString  (3, signature);
+			stmt.setInt     (2, modifier);
+			stmt.execute    ();
+		}
+	}
+	
+	public void insertIntoOverrides (int pkClass, int pkMethod)
+		throws SQLException
+	{
+		final String sql = "INSERT INTO OVERRIDES (OVERRIDING_CLASS, OVERRIDDEN_METHOD) VALUES (?, ?)";
+		
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setInt		(1, pkClass);
+			stmt.setInt     (2, pkMethod);
 			stmt.execute    ();
 		}
 	}
