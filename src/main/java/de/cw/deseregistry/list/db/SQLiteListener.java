@@ -33,32 +33,6 @@ public class SQLiteListener implements Listener {
 				jarLocation = zeClass.getProtectionDomain().getCodeSource().getLocation().getPath();
 			}
 			try {
-				if (suClass != null) {
-					// super class sollte schon in der DB sein...
-					Integer pk = driv.getPKForClass(suClass);
-					if (pk == null) {
-						System.out.println("WARNING !!!! Notifying " + zeClass.getCanonicalName() + " but " + suClass.getCanonicalName() + " not in cache!!!");
-						return;
-					}
-					driv.insertIntoClass(
-							zeClass.getName (), 
-							jarLocation,
-							pk.intValue(), zeClass.isInterface());
-				}
-				else {
-					driv.insertIntoClass(
-							zeClass.getName(), 
-							jarLocation,
-							zeClass.isInterface());				
-				}
-			}
-			catch (SQLException e1) {
-				e1.printStackTrace();
-				return;
-			}
-		}
-		else if (e instanceof AddIfEvent) {
-			AddIfEvent aie = (AddIfEvent) e;
 				driv.insertIntoClass(
 						zeClass.getName(), 
 						jarLocation,

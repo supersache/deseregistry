@@ -168,11 +168,7 @@ public class ClassProcessorDriver implements IDriver
 		
 		// erst wenn die ganze Kette zu java.lang.Object erledigt ist
 		// fangen wir mit dem Rest an
-<<<<<<< HEAD
-		AddClassEvent ev2 = new AddClassEvent(clazz, clazz.getSuperclass());
-=======
 		AddClassEvent ev2 = new AddClassEvent(clazz);
->>>>>>> redesign
 		notify (ADD_CLASS, ev2);
 		
 		// jetzt wo beide Klassen im System sind können wir die Kante zwischen den
