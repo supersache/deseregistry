@@ -35,7 +35,7 @@ public class SQLiteDriver
 	}
 	
 	public void insertIntoClass (String name, String jar, int pkSuperClass, boolean isInterface)
-			throws SQLException
+		throws SQLException
 	{
 		final String sql = "INSERT INTO CLASSES (NAME,JAR,IS_INF) VALUES (?,?,?)";
 		
@@ -62,7 +62,7 @@ public class SQLiteDriver
 
 	
 	public void insertIntoClass (String name, String jar, boolean isInterface)
-			throws SQLException
+		throws SQLException
 	{
 		final String sql = "INSERT INTO CLASSES (NAME,JAR,IS_INF) VALUES (?,?,?)";
 		
@@ -94,7 +94,7 @@ public class SQLiteDriver
 	 * @throws SQLException
 	 */
 	public void insertIntoImplements (int pkClass, int pkInf)
-			throws SQLException
+		throws SQLException
 	{
 		final String sql = "INSERT INTO IMPLEMENTS (CLASS,IMPL_INF) VALUES (?,?)";
 		
@@ -113,7 +113,7 @@ public class SQLiteDriver
 	 * @throws SQLException
 	 */
 	public void insertIntoExtends (int pkClass, int pkSuper)
-			throws SQLException
+		throws SQLException
 	{
 		final String sql = "INSERT INTO EXTENDS (CLASS,SUPER) VALUES (?,?)";
 		
@@ -134,16 +134,27 @@ public class SQLiteDriver
 	 * @param signature function signature
 	 * @throws SQLException
 	 */
-	public void insertIntoMethod (int pkDeclClass, int pkClass, int modifier, String signature)
-			throws SQLException
+	public void insertIntoMethod (int pkDeclClass, int modifier, String signature)
+		throws SQLException
 	{
-		final String sql = "INSERT INTO METHOD (DECL_CLASS, CLASS, MODIFIER, SIGNATURE) VALUES (?,?,?,?)";
+		final String sql = "INSERT INTO METHOD (DECL_CLASS,MODIFIER, SIGNATURE) VALUES (?,?,?)";
 		
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setInt		(1, pkDeclClass);
-			stmt.setInt		(2, pkClass);
-			stmt.setString  (4, signature);
-			stmt.setInt     (3, modifier);
+			stmt.setString  (3, signature);
+			stmt.setInt     (2, modifier);
+			stmt.execute    ();
+		}
+	}
+	
+	public void insertIntoOverrides (int pkClass, int pkMethod)
+		throws SQLException
+	{
+		final String sql = "INSERT INTO OVERRIDES (OVERRIDING_CLASS, OVERRIDDEN_METHOD) VALUES (?, ?)";
+		
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setInt		(1, pkClass);
+			stmt.setInt     (2, pkMethod);
 			stmt.execute    ();
 		}
 	}

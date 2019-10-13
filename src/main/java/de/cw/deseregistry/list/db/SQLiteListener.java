@@ -77,14 +77,24 @@ public class SQLiteListener implements Listener {
 			AddMethodEvent ame = (AddMethodEvent) e;
 			Method m = ame.getMethod ();
 			Class<?> clz = ame.getImplementingClass ();
+			Class<?> declClz = m.getDeclaringClass ();
 			
 			String signature = Utils.signature(m, clz);
-			int pkDeclClass = driv.getPKForClass (m.getDeclaringClass ());
+			int pkDeclClass = driv.getPKForClass (declClz);
 			int pkImplClass = driv.getPKForClass (clz);
 			int modifiers = m.getModifiers ();
 			
 			try {
-				driv.insertIntoMethod(pkDeclClass, pkImplClass, modifiers, signature);
+				driv.insertIntoMethod(pkDeclClass, modifiers, signature);
+				if (!clz.equals (declClz)) {
+					// wenn die nicht gleich sind dann muss
+					// clz eine (indirekte) Ableitung von declClz
+					// sein
+					if (!declClz.isAssignableFrom (clz)) {
+						System.err.println ("Hier ist was nicht iO: " + declClz.getName() + " " + clz.getName ());
+						throw new FatalException ("Illegel State encountered.");
+					}
+				}
 			}
 			catch (SQLException e2) {
 				e2.printStackTrace(System.err);
