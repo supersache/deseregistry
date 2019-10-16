@@ -15,7 +15,7 @@
 			<artifactId>deseregistry-main</artifactId>
 			<version>0.0.1</version>
 			<scope>system</scope>
-			<systemPath>/home/kai/eclipse-workspaces/tools/deseregistry-main/target/deseregistry-main-0.0.1-SNAPSHOT-all.jar</systemPath>
+			<systemPath>/home/user/eclipse-workspace/tools/deseregistry-main/target/deseregistry-main-0.0.1-SNAPSHOT-all.jar</systemPath>
 		</dependency>
 	</dependencies>
 	<build>
