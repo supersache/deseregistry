@@ -6,8 +6,10 @@ import java.sql.SQLException;
 import de.cw.deseregistry.errorhandling.FatalException;
 import de.cw.deseregistry.events.AddClzEvent;
 import de.cw.deseregistry.events.AddExtendsEvent;
+import de.cw.deseregistry.events.AddExtenzEvent;
 import de.cw.deseregistry.events.AddImplemenzEvent;
 import de.cw.deseregistry.events.AddMethodEvent;
+import de.cw.deseregistry.events.ConfirmIfEvent;
 import de.cw.deseregistry.events.Event;
 import de.cw.deseregistry.events.ExceptionEvent;
 import de.cw.deseregistry.main.Listener;
@@ -39,11 +41,36 @@ public class SQLiteListener2 implements Listener {
 				throw new FatalException ("notify AddClassEvent failed.");
 			}
 		}
+		else if (e instanceof ConfirmIfEvent) {
+			ConfirmIfEvent cie = (ConfirmIfEvent) e;
+			String clzName = cie.getClassName();
+			
+			int pk = driv.getPKForClass(clzName);
+			
+			try {
+				driv.updateIfProperty(pk);
+			}
+			catch (SQLException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace(System.err);
+				throw new FatalException ("notify ConfirmIfEvent failed.");
+			}			
+		}
 		else if (e instanceof AddImplemenzEvent) {
 			AddImplemenzEvent aie = (AddImplemenzEvent) e;
 			
 			int pkImplClass = 0;
 			int pkIf = 0;
+			
+			String clz = aie.getClz ();
+			String if_ = aie.getInterf ();
+			
+			if (clz == null || if_ == null) {
+				throw new FatalException("Class not found in cache: " + clz + " " + if_);
+			}
+			
+			pkImplClass = driv.getPKForClass (clz);
+			pkIf = driv.getPKForClass        (if_);
 			
 			try {
 				driv.insertIntoImplements (pkImplClass, pkIf);
@@ -54,12 +81,11 @@ public class SQLiteListener2 implements Listener {
 				throw new FatalException ("notify AddImplementsEvent failed.");
 			}
 		}
-		else if (e instanceof AddExtendsEvent) {
-			AddExtendsEvent aie = (AddExtendsEvent) e;
-			Class<?> parentClass = aie.getParentClass();
+		else if (e instanceof AddExtenzEvent) {
+			AddExtenzEvent aee = (AddExtenzEvent) e;
 			
-			int pkParent = driv.getPKForClass(parentClass);
-			int pkChild = driv.getPKForClass(aie.getChildClassEvent().getEventClass());
+			int pkParent = driv.getPKForClass (aee.getClz ());
+			int pkChild = driv.getPKForClass (aee.getSuperClz ());
 			
 			try {
 				driv.insertIntoExtends (pkChild, pkParent);

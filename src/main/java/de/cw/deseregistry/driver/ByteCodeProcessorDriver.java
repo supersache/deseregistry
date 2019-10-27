@@ -17,6 +17,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,10 +29,11 @@ import org.objectweb.asm.ClassReader;
 
 import de.cw.deseregistry.asm.ClassVisitor;
 import de.cw.deseregistry.errorhandling.FatalException;
+import de.cw.deseregistry.events.AddClassEvent;
 import de.cw.deseregistry.events.AddClzEvent;
-import de.cw.deseregistry.events.ConfirmIfEvent;
 import de.cw.deseregistry.events.AddExtenzEvent;
 import de.cw.deseregistry.events.AddImplemenzEvent;
+import de.cw.deseregistry.events.ConfirmIfEvent;
 import de.cw.deseregistry.events.Event;
 import de.cw.deseregistry.main.IDriver;
 import de.cw.deseregistry.main.Listener;
@@ -40,7 +42,7 @@ import de.cw.deseregistry.main.Listener_Action;
 public class ByteCodeProcessorDriver implements IDriver {
 
 	private List<File> 		 jarfilesToProcess;
-	private Set<String> 	 visitedClasses;
+	private Set<String> 	 visitedClasses = new HashSet<String> ();
 	private List<String> 	 classToProcess = new ArrayList<String> ();
 	private List<Listener>   addClassListener = new ArrayList<Listener>();
 	private List<Listener>   addImplementsListener = new ArrayList<Listener>();
@@ -136,24 +138,43 @@ public class ByteCodeProcessorDriver implements IDriver {
 	public void go() throws Exception
 	{
 		fillClassToJarMap ();
-		for (String s : this.classToProcess) {
-			if (this.visitedClasses.contains (s)) {
-				continue;
+		// before starting add our VisitedListener to the AddClassListeners
+		// to make sure we fill the visitedfile
+		addClassListener.add (new VisitedListener ());
+		try {
+			for (String s : this.classToProcess) {
+				this.recursiveVisit (s);
 			}
+		}
+		finally {
+			for (String s : this.visitedClasses)
+				this.visitedFile.println (s);
+			
+			this.visitedFile.close ();
 		}
 	}
 	
 	private void recursiveVisit (String clzName) throws IOException
 	{
-		if (this.visitedClasses.contains(clzName)) {
+		if (this.visitedClasses.contains (clzName)) {
 			return;
+		}
+		else {
+			this.visitedClasses.add (clzName);
 		}
 
 		byte [] bb = this.getByteCode (clzName);
-		ClassReader cr = new ClassReader (bb);
-		ClassVisitor cv = null;
-		cr.accept (cv = new ClassVisitor (), ClassReader.SKIP_CODE);
-		List<Event> evts = cv.getEvents ();
+		List<Event> evts = null;
+		if (bb != null) {
+			ClassReader cr = new ClassReader (bb);
+			ClassVisitor cv = null;
+			cr.accept (cv = new ClassVisitor (), ClassReader.SKIP_CODE);
+			evts = cv.getEvents ();
+		}
+		else {
+			evts = new ArrayList<Event> ();
+			evts.add (new AddClzEvent (clzName));
+		}
 		
 		// Now there can be only one class event
 		// and one super class event. We need to
@@ -200,6 +221,11 @@ public class ByteCodeProcessorDriver implements IDriver {
 			
 			// now notify that this is an interface
 			notify (new ConfirmIfEvent(aie.getInterf()));
+			
+			// now the interface and the class should
+			// be in cache/db so that we can trigger
+			// the implemenz-event
+			notify (aie);
 		}
 	}
 	
@@ -216,6 +242,8 @@ public class ByteCodeProcessorDriver implements IDriver {
 			AddClzEvent e2 = (AddClzEvent) e;
 			File jar = this.classToJarfileMap.get (e2.getClassName ());
 			if (jar != null)
+				// hier hätte ich gerne getCanonicalPath,
+				// welches aber eine Exception wirft.
 				e2.setJarLocation (jar.getAbsolutePath ());
 			
 			for (Listener l : this.addClassListener) {
@@ -245,6 +273,10 @@ public class ByteCodeProcessorDriver implements IDriver {
 		final String CMD = "/bin/sh -c $@|sh . echo cd /tmp/ && jar -xvf %s '%s'";
 		File jarFile = this.classToJarfileMap.get (className);
 		
+		if (jarFile == null) {
+			return null;
+		}
+		
 		try {
 			Process p = Runtime.getRuntime ().exec (String.format(CMD, jarFile.getAbsoluteFile(), className + ".class"));
 			int rc = p.waitFor ();
@@ -269,6 +301,18 @@ public class ByteCodeProcessorDriver implements IDriver {
 		}		
 	}
 	
+	private File getSystemJarFile (String className) {
+		if (className.startsWith("java/")) {
+			// get java hom
+			String java_home = System.getProperty("java.home");
+			File ret = new File (String.format("%s/lib/rt.jar", java_home));
+			if (!ret.exists())
+				return null;
+			return ret;
+		}
+		return null;
+	}
+
 	/**
 	 *  runs through all jar files and stores the class/jarfile tuple
 	 *  in the map so that later on one can check in which jar file
@@ -278,7 +322,14 @@ public class ByteCodeProcessorDriver implements IDriver {
 	 */
 	private void fillClassToJarMap () throws ZipException, IOException
 	{
-		for (File f: jarfilesToProcess) {
+		// add rt.jar to classToJarfileMap
+		String java_home = System.getProperty("java.home");
+		jarfilesToProcess.add(new File (java_home + "/lib/rt.jar"));
+		for (int jj=0; jj<jarfilesToProcess.size(); jj++) {
+			File f = jarfilesToProcess.get (jj);
+			// we don't want to analyze classes from rt.jar
+			// which is the last jar file (we just added it)
+			boolean addClassFilesFromThisJar = (jj < jarfilesToProcess.size()-1);
 			ZipFile zipFile = new ZipFile(f);
 
 			Enumeration<? extends ZipEntry> entries = zipFile.entries();
@@ -291,8 +342,31 @@ public class ByteCodeProcessorDriver implements IDriver {
 
 				String className = name.substring(0, name.length() - 6);
 				this.classToJarfileMap.put (className, f);
-				this.addClassToProcess(className);
+				
+				if (addClassFilesFromThisJar)
+					this.addClassToProcess(className);
 			}
 		}
+		
+		// let's remove rt.jar again
+		jarfilesToProcess.remove (jarfilesToProcess.size() - 1);
+	}
+	
+	class VisitedListener implements Listener
+	{
+
+		@Override
+		public void notify (Event arg0) {
+			AddClzEvent e = (AddClzEvent) arg0;
+			ByteCodeProcessorDriver.this.visitedFile.println (e.getClassName());
+		}
+		
+	}
+	
+	@Override
+	public void finalize ()
+	{
+		if (this.visitedFile != null)
+			this.visitedFile.close ();
 	}
 }

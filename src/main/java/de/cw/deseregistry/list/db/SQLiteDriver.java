@@ -39,6 +39,16 @@ public class SQLiteDriver
 		return classPkMap.get (clz);
 	}
 	
+	public void updateIfProperty (Integer pk) throws SQLException
+	{
+		final String sql = "UPDATE CLASSES SET IS_INF=1 where ID=?";
+		
+		try (PreparedStatement stmt = conn.prepareStatement (sql)) {
+			stmt.setInt	(1, pk);
+			stmt.executeUpdate ();
+		}
+	}
+	
 	public void insertIntoClass (String name, String jar, boolean isInterface)
 			throws SQLException
 	{
