@@ -1,5 +1,11 @@
 package de.cw.deseregistry.driver;
 
+import static de.cw.deseregistry.main.Listener_Action.ADD_CLASS;
+import static de.cw.deseregistry.main.Listener_Action.ADD_EXTENDS;
+import static de.cw.deseregistry.main.Listener_Action.ADD_IMPLEMENTS;
+import static de.cw.deseregistry.main.Listener_Action.ADD_METHOD;
+import static de.cw.deseregistry.main.Listener_Action.CONFIRM_IF;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -18,22 +24,32 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 
+import org.objectweb.asm.ClassReader;
+
+import de.cw.deseregistry.asm.ClassVisitor;
 import de.cw.deseregistry.errorhandling.FatalException;
+import de.cw.deseregistry.events.AddClzEvent;
+import de.cw.deseregistry.events.ConfirmIfEvent;
+import de.cw.deseregistry.events.AddExtenzEvent;
+import de.cw.deseregistry.events.AddImplemenzEvent;
+import de.cw.deseregistry.events.Event;
 import de.cw.deseregistry.main.IDriver;
 import de.cw.deseregistry.main.Listener;
 import de.cw.deseregistry.main.Listener_Action;
 
 public class ByteCodeProcessorDriver implements IDriver {
 
-	private List<File> jarfilesToProcess;
-	private Set<String> visitedClasses;
-	private List<String> classToProcess = new ArrayList<String> ();
-	private List<Listener> addClassListener = new ArrayList<Listener>();
-	private List<Listener> addImplementsListener = new ArrayList<Listener>();
-	private List<Listener> addExtendsListener = new ArrayList<Listener>();
-	private List<Listener> addMethodListener = new ArrayList<Listener>();
-	private List<Listener> classLoadErrorListener = new ArrayList<Listener>();
-	private PrintWriter visitedFile = null;
+	private List<File> 		 jarfilesToProcess;
+	private Set<String> 	 visitedClasses;
+	private List<String> 	 classToProcess = new ArrayList<String> ();
+	private List<Listener>   addClassListener = new ArrayList<Listener>();
+	private List<Listener>   addImplementsListener = new ArrayList<Listener>();
+	private List<Listener>   addExtendsListener = new ArrayList<Listener>();
+	private List<Listener>   addMethodListener = new ArrayList<Listener>();
+	private List<Listener>   confirmIfListener = new ArrayList<Listener> ();
+	private List<Listener>   classLoadErrorListener = new ArrayList<Listener>();
+	private PrintWriter 	 visitedFile = null;
+	private Map<String,File> classToJarfileMap = new HashMap<String, File> ();
 	
 	public ByteCodeProcessorDriver (File visitedFile)
 	{
@@ -75,13 +91,7 @@ public class ByteCodeProcessorDriver implements IDriver {
 			e.printStackTrace (System.err);
 			throw new FatalException ("Stress with visited file.");
 		}			
-	}	
-	
-	
-	/**
-	 * 
-	 */
-	private Map<String,File> classToJarfileMap = new HashMap<String, File> ();
+	}
 	
 	
 	@Override
@@ -97,23 +107,142 @@ public class ByteCodeProcessorDriver implements IDriver {
 	}
 
 	@Override
-	public void register (String listenerClzName, Listener_Action[] actions) {
-		// TODO Auto-generated method stub
+	public void register(String clz, Listener_Action [] actions) {
 		
+		Listener listener = null;
+		try {
+			listener = (Listener) Class.forName(clz).newInstance();
+		}
+		catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+			throw new FatalException (e);
+		} 		
+		
+		for (Listener_Action action : actions) {
+			if (action == ADD_CLASS) {
+				addClassListener.add(listener);
+			} else if (action == ADD_IMPLEMENTS) {
+				addImplementsListener.add(listener);
+			} else if (action == ADD_EXTENDS) {
+				addExtendsListener.add(listener);
+			} else if (action == ADD_METHOD) {
+				addMethodListener.add(listener);
+			} else if (action == CONFIRM_IF) {
+				confirmIfListener.add(listener);
+			}
+		}
 	}
 
 	@Override
 	public void go() throws Exception
 	{
 		fillClassToJarMap ();
-		String s = this.classToProcess.get(0);
-		byte [] bb = this.getByteCode(s);
+		for (String s : this.classToProcess) {
+			if (this.visitedClasses.contains (s)) {
+				continue;
+			}
+		}
+	}
+	
+	private void recursiveVisit (String clzName) throws IOException
+	{
+		if (this.visitedClasses.contains(clzName)) {
+			return;
+		}
+
+		byte [] bb = this.getByteCode (clzName);
+		ClassReader cr = new ClassReader (bb);
+		ClassVisitor cv = null;
+		cr.accept (cv = new ClassVisitor (), ClassReader.SKIP_CODE);
+		List<Event> evts = cv.getEvents ();
+		
+		// Now there can be only one class event
+		// and one super class event. We need to
+		// process the superclass first
+		AddClzEvent ace = null;
+		AddExtenzEvent aee = null;
+		
+		//
+		// we need to get the 2 events
+		//
+		for (Event e: evts) {
+			if (e instanceof AddClzEvent) {
+				ace = (AddClzEvent) e;
+			}
+			if (e instanceof AddExtenzEvent) {
+				aee = (AddExtenzEvent) e;
+			}
+		}
+		evts.remove (ace);
+		if (aee != null) {
+			evts.remove (aee);
+		}
+		
+		//
+		// recursively do the class hierarchy
+		//
+		if (aee != null) {
+			recursiveVisit (aee.getSuperClz());
+		}
+
+		// then notify the add class
+		notify (ace);
+		
+		//
+		// Now  the  remaining  events  should  be 
+		// interface listener and AddMethodDingens
+		//
+		for (Event e: evts) {
+			AddImplemenzEvent aie = (AddImplemenzEvent) e;
+			
+			// Erst müssen wir sicherstellen dass die Klassen
+			// im Cache sind (SQLiteDriver.getPKForClass ())
+			recursiveVisit (aie.getInterf());
+			
+			// now notify that this is an interface
+			notify (new ConfirmIfEvent(aie.getInterf()));
+		}
+	}
+	
+	private void notify (List<Event> li)
+	{
+		for (Event e: li) {
+			notify (e);
+		}
+	}
+	
+	private void notify (Event e)
+	{
+		if (e instanceof AddClzEvent) {
+			AddClzEvent e2 = (AddClzEvent) e;
+			File jar = this.classToJarfileMap.get (e2.getClassName ());
+			if (jar != null)
+				e2.setJarLocation (jar.getAbsolutePath ());
+			
+			for (Listener l : this.addClassListener) {
+				l.notify(e);
+			}
+		}
+		else if (e instanceof AddExtenzEvent) {
+			for (Listener l : this.addExtendsListener) {
+				l.notify(e);
+			}
+		}
+		else if (e instanceof AddImplemenzEvent) {
+			for (Listener l : this.addImplementsListener) {
+				l.notify(e);
+			}
+		}
+		else if (e instanceof ConfirmIfEvent) {
+			for (Listener l : this.confirmIfListener) {
+				l.notify(e);
+			}
+		}
 	}
 	
 	private byte [] getByteCode (String className)
 			throws IOException
 	{
-		final String CMD = "/bin/sh -c $@|sh . echo cd /tmp/ && jar -xvf %s %s";
+		final String CMD = "/bin/sh -c $@|sh . echo cd /tmp/ && jar -xvf %s '%s'";
 		File jarFile = this.classToJarfileMap.get (className);
 		
 		try {

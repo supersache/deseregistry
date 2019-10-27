@@ -34,32 +34,10 @@ public class SQLiteDriver
 		return classPkMap.get (classname);
 	}
 	
-	public void insertIntoClass (String name, String jar, int pkSuperClass, boolean isInterface)
-		throws SQLException
+	public Integer getPKForClass (String clz)
 	{
-		final String sql = "INSERT INTO CLASSES (NAME,JAR,IS_INF) VALUES (?,?,?)";
-		
-		try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-			stmt.setString	(1, name);
-			stmt.setString	(2, jar);
-			stmt.setInt	(3, isInterface?1:0);
-			
-			stmt.execute ();
-			
-			/**
-			 *  wenn wir eine Klasse einfügen
-			 *  könnte es sein dass wir den generierten
-			 *  PK brauchen weil wir noch die Kindklasse
-			 *  eintragen wollen im nächsten Schritt
-			 */
-			ResultSet st = stmt.getGeneratedKeys();
-			while (st.next()) {
-				int key = st.getInt (1);
-				classPkMap.put(name, key);
-			}
-		}
+		return classPkMap.get (clz);
 	}
-
 	
 	public void insertIntoClass (String name, String jar, boolean isInterface)
 			throws SQLException
