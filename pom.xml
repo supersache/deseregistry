@@ -10,17 +10,15 @@
 			<artifactId>sqlite-jdbc</artifactId>
 			<version>3.28.0</version>
 		</dependency>
-		<dependency>
-			<groupId>de.cw.deseregistry</groupId>
-			<artifactId>deseregistry-main</artifactId>
-			<version>0.0.1</version>
-			<scope>system</scope>
-			<systemPath>/home/user/eclipse-workspace/tools/deseregistry-main/target/deseregistry-main-0.0.1-SNAPSHOT-all.jar</systemPath>
-		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.objectweb.asm/org.objectweb.asm -->
 		<dependency>
 			<groupId>asm</groupId>
 			<artifactId>asm</artifactId>
+			<version>3.3.1</version>
+		</dependency>
+		<dependency>
+			<groupId>asm</groupId>
+			<artifactId>asm-util</artifactId>
 			<version>3.3.1</version>
 		</dependency>
 	</dependencies>

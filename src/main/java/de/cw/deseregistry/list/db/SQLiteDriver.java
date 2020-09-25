@@ -9,6 +9,8 @@ import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
 
+import de.cw.deseregistry.utils.ClazzAnalysisResult;
+
 public class SQLiteDriver
 {
 	private Connection conn = null;
@@ -28,9 +30,21 @@ public class SQLiteDriver
 		}
 	}
 	
-	public Integer getPKForClass (Class<?> clz)
+	public Integer getPKForClass (Class<?> clz) throws SQLException
 	{
 		String classname = clz.getName();
+		if (classname == null) {
+			final String sql = "select ID from CLASSES where NAME=?";
+
+			try (PreparedStatement stmt = conn.prepareStatement (sql)) {
+				stmt.setString	(1, classname);
+				ResultSet rs = stmt.executeQuery();
+				if (rs.getFetchSize()>=1) {
+					return rs.getInt(0);
+				}
+			}
+		}
+		
 		return classPkMap.get (classname);
 	}
 	
@@ -145,5 +159,10 @@ public class SQLiteDriver
 			stmt.setInt     (2, pkMethod);
 			stmt.execute    ();
 		}
+	}
+
+	public ClazzAnalysisResult getClazzAnalysisResult(String parentClazzName) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

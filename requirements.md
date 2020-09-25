@@ -188,9 +188,9 @@ Code:
         }
     }
 
-### Helper methods
+### TODOs
 
-* `getSignatur (Method)`: gibt mir die Signatur als String ==> vielleicht m.toString ()?
-* `dblayer.exists (Class clazz)` prüft auf name und package
+[ ] toString method für die Event-Klassen
+[ ] filter-Mechanismus für die Klassen?
     
     
