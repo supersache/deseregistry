@@ -1,19 +1,23 @@
 package de.cw.deseregistry.main;
 
+import static de.cw.deseregistry.utils.IConstants.DB_FILE;
 import static de.cw.deseregistry.utils.IConstants.DB_SKIP_PARENT_CHECK;
 import static de.cw.deseregistry.utils.IConstants.DRIVER_CLASS_FILE;
 import static de.cw.deseregistry.utils.IConstants.INPUT_FILE_JARS;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.sql.SQLException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
-import java.util.Vector;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import de.cw.deseregistry.driver.IBackCaller;
 import de.cw.deseregistry.driver.IDriver;
+import de.cw.deseregistry.list.db.SQLiteDriver;
 
 
 public class Main implements IBackCaller {
@@ -24,10 +28,12 @@ public class Main implements IBackCaller {
 	private File inputfile;
 	
 	private IDriver cpd;
+	
+	private Set<String> knownClasses = new HashSet<String> ();
 
 	private static Logger LOGGER = Logger.getLogger(Main.class.getName());
 
-	public static void main(String[] args) throws Exception
+	public static void main(String[] args) throws Exception     
 	{
 		LOGGER.log (Level.FINE, "Pilsken");
 		Properties conf = new Properties();
@@ -66,9 +72,10 @@ public class Main implements IBackCaller {
 
 	@SuppressWarnings("unchecked")
 	/* package private */
-	void prepare(Properties conf) throws ReflectiveOperationException
+	void prepare(Properties conf) throws ReflectiveOperationException, SQLException
 	{
 
+		System.out.println("[!] Getting input file");
 		String inputfileParam = conf.getProperty(INPUT_FILE_JARS);
 
 		if (inputfileParam == null) {
@@ -81,6 +88,7 @@ public class Main implements IBackCaller {
 			System.err.println("Input file " + inputfileParam + " doesn't exist, exiting ...");
 			System.exit(1);
 		}
+		System.out.println("[+] ok");
 		
 		boolean skipDB = conf.getProperty(DB_SKIP_PARENT_CHECK).equalsIgnoreCase("true");
 //
@@ -97,17 +105,20 @@ public class Main implements IBackCaller {
 //			// if inputClassesParam is empty, there need to be jar files to analyze
 //		}
 
-//		String dbfileParam = conf.getProperty(DB_FILE);
-//		if (dbfileParam == null) {
-//			System.err.println("Parameter " + DB_FILE + " missing in config, exiting ...");
-//			System.exit(1);
-//		}
-//		this.dbfile = new File(dbfileParam);
-//
-//		if (!dbfile.exists()) {
-//			System.err.println("Input file " + inputClassesParam + " doesn't exist, exiting ...");
-//			System.exit(1);
-//		}
+		System.out.println("[!] Getting DB file");
+		String dbfileParam = conf.getProperty(DB_FILE);
+		if (dbfileParam == null) {
+			System.err.println("Parameter " + DB_FILE + " missing in config, exiting ...");
+			System.exit(1);
+		}
+
+		if (!new File(dbfileParam).exists()) {
+			System.err.println("DB File " + dbfileParam + " doesn't exist, exiting ...");
+			System.exit(1);
+		}
+		System.out.println("[+] ok");
+		
+		System.setProperty("SQLITEDBFILE", dbfileParam);
 
 		/**
 		 * Für's Laden des DB driver, vielleicht etwas umständlich
@@ -127,6 +138,7 @@ public class Main implements IBackCaller {
 //
 //		File visited = new File(visitedParam);
 
+		System.out.println("[!] Getting processor class");
 		String driverClazz = conf.getProperty(DRIVER_CLASS_FILE);
 		if (driverClazz == null) {
 			System.err.println("Parameter " + DRIVER_CLASS_FILE + " missing in config, exiting ...");
@@ -139,6 +151,8 @@ public class Main implements IBackCaller {
 		Class<? extends IDriver> clazzProcessor = (Class<? extends IDriver>) Class.forName(driverClazz);
 		
 		this.cpd = (IDriver) clazzProcessor.getConstructor(Boolean.TYPE).newInstance(skipDB);
+		this.cpd.setBackCaller(this);
+		System.out.println("[+] Ok");
 		
 		if (inputfile.isDirectory()) {
 			// process all jar files in the directory
@@ -150,6 +164,13 @@ public class Main implements IBackCaller {
 		else {
 			this.cpd.addJarToProcess (inputfile);
 		}
+		
+		/**
+		 * Get all known classes
+		 */
+		System.out.println("[!] Reading known classes from DB");
+		this.prepareClasses();
+		System.out.println("[+] Ok");
 	}
 
 	public void process() throws Exception
@@ -158,14 +179,32 @@ public class Main implements IBackCaller {
 	}
 
 	@Override
-	public void addVisitedClass(String className) {
-		// TODO Auto-generated method stub
-		
+	public void notify(NotificationType type, Object details) {
+		if (type==NotificationType.CLASS_INSERTED) {
+			System.out.println("[+] Class " + details.toString () + " inserted.");
+		}
+		if (type==NotificationType.CLASS_UPDATED) {
+			System.out.println("[+] Class " + details.toString () + " updated.");
+		}
 	}
-
+	
 	@Override
-	public void notify(NotificationType type) {
-		// TODO Auto-generated method stub
+	public Object getParam (String key) {
+		return null;
+	}
+	
+	@Override
+	public boolean classExists (String className)
+	{
+		return this.knownClasses.contains(className);
+	}
+	
+	private void prepareClasses () throws SQLException
+	{
+		SQLiteDriver sqld = SQLiteDriver.getInstance ();
 		
+		List<String> all = sqld.getAllClassNames ();
+		
+		this.knownClasses.addAll(all);
 	}
 }

@@ -1,22 +1,46 @@
 package de.cw.deseregistry.list.db;
 
+import static de.cw.deseregistry.utils.ClazzAnalysisResult.i1;
+import static de.cw.deseregistry.utils.ClazzAnalysisResult.i2;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import de.cw.deseregistry.utils.ClazzAnalysisResult;
+
+//Tabelle CLASSES wurde folgendermassen erzeugt:
+//
+/*
+CREATE TABLE CLASSES(
+clzName TEXT NOT NULL,
+ parentClazzName TEXT NOT NULL,
+ serializable INTEGER,
+  probablySerializable INTEGER,
+  invocationHandler INTEGER,
+  comparable INTEGER,
+  implementsReadObject INTEGER,
+  implementsEquals INTEGER,
+  implementsHashCode INTEGER,
+  implementsCompareTo INTEGER,
+  implementsFinalize INTEGER,
+  PRIMARY KEY (clzName, parentClazzName));
+			    */
 
 public class SQLiteDriver
 {
 	private Connection conn = null;
 	private Map<String,Integer> classPkMap = new HashMap<String,Integer> ();
+	private static SQLiteDriver instance;
 	
-	public SQLiteDriver ()
+	private SQLiteDriver ()
 	{
 		String dbfile = System.getProperty("SQLITEDBFILE");
 		if (dbfile == null) {
@@ -28,6 +52,14 @@ public class SQLiteDriver
 		} catch (SQLException e) {
 			throw new RuntimeException (e);
 		}
+	}
+	
+	public static SQLiteDriver getInstance ()
+	{
+		if (instance == null)
+			instance = new SQLiteDriver ();
+		
+		return instance;
 	}
 	
 	public Integer getPKForClass (Class<?> clz) throws SQLException
@@ -160,9 +192,142 @@ public class SQLiteDriver
 			stmt.execute    ();
 		}
 	}
+	
+	public void insertIntoClasses (ClazzAnalysisResult car) throws SQLException
+	{
+		final String sql = "INSERT INTO CLASSES (clzName, parentClazzName, serializable, probablySerializable, invocationHandler" +
+					",comparable,implementsReadObject,implementsEquals,implementsHashCode,implementsCompareTo,implementsFinalize) "+
+				    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		
+		try (PreparedStatement stmt = conn.prepareStatement (sql)) {
+			stmt.setString (1, car.getClzName());
+			stmt.setString (2, car.getParentClazzName());
+			stmt.setInt (3, i1(car.serializable));
+			stmt.setInt (4, i1(car.probablySerializable));
+			stmt.setInt (5, i1(car.invocationHandler));
+			stmt.setInt (6, i1(car.comparable));
+			stmt.setInt (7, i1(car.implementsReadObject));
+			stmt.setInt (8, i1(car.implementsEquals));
+			stmt.setInt (9, i1(car.implementsHashCode));
+			stmt.setInt (10, i1(car.implementsCompareTo));
+			stmt.setInt (11, i1(car.implementsFinalize));
+			stmt.execute    ();
+		}
+	}
 
-	public ClazzAnalysisResult getClazzAnalysisResult(String parentClazzName) {
-		// TODO Auto-generated method stub
-		return null;
+	public boolean existsClazzEntry (String clazzName) throws SQLException
+	{
+		final String sql = "SELECT count(*) from CLASSES where clzName = ?";
+		
+		try (PreparedStatement stmt = conn.prepareStatement (sql)) {
+			stmt.setString	(1, clazzName);
+			ResultSet rs = stmt.executeQuery();
+			rs.next();
+			int count = rs.getInt("count(*)");
+			if (count > 1) {
+				throw new DataIntegrityException("Too many (" + rs.getFetchSize() + ") hits for clazz " + clazzName);
+			}
+			
+			return count == 1;
+		}
+	}
+	
+	public List<String> getAllClassNames () throws SQLException
+	{
+		final String sql = "select clzName from CLASSES";
+		List<String> clzs = new ArrayList<String> ();
+		
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			ResultSet rs = stmt.executeQuery();
+			while (rs.next ()) {
+				clzs.add (rs.getString (1));
+			}
+		}
+		
+		return clzs;
+	}
+	
+	public void updateClazzInterfaces (ClazzAnalysisResult car) throws SQLException
+	{
+		final String sql = "UPDATE CLASSES set serializable=?, probablySerializable=?,invocationHandler=?,comparable=? " +
+					       "where clzName = ?";
+		
+		try (PreparedStatement stmt = conn.prepareStatement (sql)) {
+			stmt.setInt (1, i1(car.serializable));
+			stmt.setInt (2, i1(car.probablySerializable));
+			stmt.setInt (3, i1(car.invocationHandler));
+			stmt.setInt (4, i1(car.comparable));
+			stmt.setString (5, car.getClzName());
+			stmt.execute    ();
+		}
+	}
+
+	public ClazzAnalysisResult[] getMyChildClasses(String myName) throws SQLException
+	{
+		final String sql = "SELECT * from CLASSES where parentClazzName = ?";
+		List<ClazzAnalysisResult> res = new ArrayList<ClazzAnalysisResult> ();
+		
+		try (PreparedStatement stmt = conn.prepareStatement (sql)) {
+			stmt.setString	(1, myName);
+			ResultSet rs = stmt.executeQuery();
+			/*
+			CREATE TABLE CLASSES(
+			clzName TEXT NOT NULL,
+			 parentClazzName TEXT NOT NULL,
+			 serializable INTEGER,
+			  probablySerializable INTEGER,
+			  invocationHandler INTEGER,
+			  comparable INTEGER,
+			  implementsReadObject INTEGER,
+			  implementsEquals INTEGER,
+			  implementsHashCode INTEGER,
+			  implementsCompareTo INTEGER,
+			  implementsFinalize INTEGER,
+			  PRIMARY KEY (clzName, parentClazzName));
+						    */
+			while(rs.next()) {
+				String cn = rs.getString (1);
+				String pcn = rs.getString (2);
+				int ser = rs.getInt (3);
+				int pser = rs.getInt (4);
+				int inv = rs.getInt  (5);
+				int cmp = rs.getInt (6);
+				int ro = rs.getInt (7);
+				int eq = rs.getInt (8);
+				int hc = rs.getInt (9);
+				int ct = rs.getInt (10);
+				int fin = rs.getInt (11);
+				
+				res.add (new ClazzAnalysisResult(cn, pcn, i2(ser), i2(pser), i2(inv), i2(cmp), i2(ro), i2(eq), i2(hc), i2(ct), i2(fin)));
+			} 
+		}
+		
+		return res.toArray(new ClazzAnalysisResult[0]);
+	}
+	
+	public int performInheritanceUpdateQuery (String inheritedInterface)
+		throws IllegalArgumentException, SQLException
+	{
+		String sql = getInheritanceQuery(inheritedInterface);
+		try (PreparedStatement stmt = conn.prepareStatement (sql)) {
+			stmt.execute    ();
+			
+			return stmt.getUpdateCount();
+		}		
+	}
+
+	private static String getInheritanceQuery (String interfaceName)
+	{
+		if (!interfaceName.equals("comparable") && !interfaceName.equals("invocationHandler") && 
+		    !interfaceName.equals ("serializable")) {
+			
+			throw new IllegalArgumentException ("only the three magic interfaces are allowed");
+		}
+		
+		return String.format ("update CLASSES set %s=1 where clzName in (" +
+				"select child.clzName from CLASSES child inner join CLASSES parent on child.parentClazzName = parent.clzName where " +
+			    "parent.%s = 1 and child.%s = 0"
+			+ ")", interfaceName, interfaceName,interfaceName);
+				
 	}
 }

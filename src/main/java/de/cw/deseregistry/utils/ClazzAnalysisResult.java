@@ -42,9 +42,16 @@ public class ClazzAnalysisResult {
 	 */
 	public void inherit (ClazzAnalysisResult car)
 	{
-		this.probablySerializable = car.probablySerializable;
-		this.serializable = car.serializable;
-		this.invocationHandler = car.invocationHandler;
-		this.comparable = car.comparable;
+		if (car.probablySerializable)
+			this.probablySerializable = car.probablySerializable;
+		if (car.serializable)
+			this.serializable = car.serializable;
+		if (car.invocationHandler)
+			this.invocationHandler = car.invocationHandler;
+		if (car.comparable)
+			this.comparable = car.comparable;
 	}
+	
+	public static int i1 (boolean b) { return b?1:0; }
+	public static boolean i2 (int i) { return i==1; }
 }
